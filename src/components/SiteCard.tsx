@@ -1,5 +1,11 @@
 import SitePhoto from './SitePhoto';
-import { formatRound, getRegionShortName, getSizedPhotoUrl, getStatusStyle } from '@/lib/siteLabels';
+import {
+  formatRound,
+  getIssueStatusStyle,
+  getRegionShortName,
+  getSizedPhotoUrl,
+  getStatusStyle,
+} from '@/lib/siteLabels';
 import type { Site } from '@/types';
 
 export default function SiteCard({
@@ -10,12 +16,13 @@ export default function SiteCard({
   onClick: () => void;
 }) {
   const status = getStatusStyle(site.status);
+  const issue = getIssueStatusStyle(site.issueStatus);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full cursor-pointer flex-col overflow-hidden bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+      className="group relative flex w-full cursor-pointer flex-col overflow-hidden bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
     >
       {/* 대표사진 + 현재 상태 */}
       <div className="relative w-full overflow-hidden bg-zinc-100" style={{ aspectRatio: '4/3' }}>
@@ -43,7 +50,24 @@ export default function SiteCard({
             <span className="text-zinc-400">{getRegionShortName(site.region)}</span>
           )}
         </div>
+        {issue && (
+          <span
+            className="mt-2.5 inline-flex self-start px-2 py-0.5 text-xs font-bold"
+            style={{ backgroundColor: issue.soft, color: issue.color }}
+          >
+            {issue.label}
+          </span>
+        )}
       </div>
+
+      {/* 현안 진행 중인 대상지는 사진까지 덮도록 카드 위에 훼손 색 테두리를 겹쳐 그림 */}
+      {site.issueStatus === '진행중' && (
+        <span
+          className="pointer-events-none absolute inset-0 z-10 border-2"
+          style={{ borderColor: getStatusStyle('훼손').color }}
+          aria-hidden="true"
+        />
+      )}
     </button>
   );
 }

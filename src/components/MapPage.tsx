@@ -7,7 +7,9 @@ import ShareButton from './ShareButton';
 import SiteCard from './SiteCard';
 import SiteDetail from './SiteDetail';
 import {
+  getIssueStatusStyle,
   getStatusStyle,
+  ISSUE_STATUS_ORDER,
   sortHeritageTypes,
   STATUS_ORDER,
   VALUE_CATEGORIES,
@@ -19,7 +21,8 @@ type Filters = {
   status: string | null;
   value: string | null;
   subValue: string | null;
-  round: number | null;
+  issueStatus: string | null;
+  round: string | null;
 };
 
 type Props = {
@@ -28,7 +31,14 @@ type Props = {
   initialSiteId?: string | null;
 };
 
-const EMPTY_FILTERS: Filters = { query: '', status: null, value: null, subValue: null, round: null };
+const EMPTY_FILTERS: Filters = {
+  query: '',
+  status: null,
+  value: null,
+  subValue: null,
+  issueStatus: null,
+  round: null,
+};
 
 /** 네이버 클라우드 플랫폼 Maps Client ID. 없으면 기본 SVG 지도를 사용 */
 const NAVER_MAP_KEY_ID = process.env.NEXT_PUBLIC_NAVER_MAP_KEY_ID ?? '';
@@ -61,7 +71,8 @@ function matchesQuery(site: Site, query: string): boolean {
 function matchesFilters(site: Site, filters: Filters): boolean {
   if (!matchesQuery(site, filters.query)) return false;
   if (filters.status && site.status !== filters.status) return false;
-  if (filters.round && site.round !== filters.round) return false;
+  if (filters.issueStatus && site.issueStatus !== filters.issueStatus) return false;
+  if (filters.round && site.roundKey !== filters.round) return false;
   if (filters.value) {
     if (!site.valueCategories.includes(filters.value)) return false;
     const field = getValueField(filters.value);
@@ -130,6 +141,12 @@ export default function MapPage({ sites, initialRegion = null, initialSiteId = n
     return counts;
   }, [mapSource]);
 
+  // 지역만 적용된 목록 (필터별 대상지 수에 사용)
+  const regionSites = useMemo(
+    () => (selectedRegion ? sites.filter((site) => site.region === selectedRegion) : sites),
+    [sites, selectedRegion],
+  );
+
   const visibleSites = useMemo(
     () => (selectedRegion ? mapSource.filter((site) => site.region === selectedRegion) : mapSource),
     [mapSource, selectedRegion],
@@ -193,7 +210,7 @@ export default function MapPage({ sites, initialRegion = null, initialSiteId = n
         <div className="flex flex-col border-t border-zinc-200 bg-[#E6F1EB] lg:w-[62%] lg:border-l lg:border-t-0">
           <div className="flex-1">
             <SiteListPanel
-              allSites={sites}
+              allSites={regionSites}
               sites={visibleSites}
               filters={filters}
               onFiltersChange={setFilters}
@@ -228,16 +245,20 @@ function SiteListPanel({
   onSelect: (site: Site) => void;
 }) {
   const statusCounts = useMemo(() => countBy(allSites, (site) => [site.status]), [allSites]);
-  const valueCounts = useMemo(() => countBy(allSites, (site) => site.valueCategories), [allSites]);
+  const issueStatusCounts = useMemo(() => countBy(allSites, (site) => [site.issueStatus]), [allSites]);
   const roundOptions = useMemo(() => {
-    const map = new Map<number, { year: string; count: number }>();
+    const map = new Map<string, { label: string; round: number; count: number }>();
     for (const site of allSites) {
-      if (!site.round) continue;
-      const entry = map.get(site.round) ?? { year: site.year, count: 0 };
+      if (!site.roundKey) continue;
+      const label = site.round ? `제${site.round}회${site.year ? ` (${site.year})` : ''}` : site.roundKey;
+      const entry = map.get(site.roundKey) ?? { label, round: site.round, count: 0 };
       entry.count++;
-      map.set(site.round, entry);
+      map.set(site.roundKey, entry);
     }
-    return [...map.entries()].sort(([a], [b]) => a - b);
+    // 회차 순서대로, 회차가 없는 항목(신규 훼손지 등)은 뒤에
+    return [...map.entries()].sort(
+      ([, a], [, b]) => (a.round || Infinity) - (b.round || Infinity) || a.label.localeCompare(b.label, 'ko'),
+    );
   }, [allSites]);
 
   const subField = filters.value ? getValueField(filters.value) : null;
@@ -260,9 +281,9 @@ function SiteListPanel({
     return sortHeritageTypes([...map.keys()]).map((type) => [type, map.get(type)!] as const);
   }, [sites]);
 
-  const statusOptions = STATUS_ORDER.filter((status) => statusCounts.has(status));
+  const statusOptions = STATUS_ORDER.filter((status) => statusCounts.has(status) || filters.status === status);
   const hasFilter = Boolean(
-    filters.query.trim() || filters.status || filters.value || filters.round || region,
+    filters.query.trim() || filters.status || filters.value || filters.issueStatus || filters.round || region,
   );
 
   return (
@@ -315,7 +336,35 @@ function SiteListPanel({
                   style={{ backgroundColor: active ? '#fff' : style.color }}
                 />
                 {status}
-                <span className="opacity-60">{statusCounts.get(status)}</span>
+                <span className="opacity-60">{statusCounts.get(status) ?? 0}</span>
+              </Chip>
+            );
+          })}
+        </FilterRow>
+
+        <FilterRow label="보전 현안">
+          <Chip
+            active={!filters.issueStatus}
+            onClick={() => onFiltersChange({ ...filters, issueStatus: null })}
+          >
+            전체
+          </Chip>
+          {ISSUE_STATUS_ORDER.map((issueStatus) => {
+            const style = getIssueStatusStyle(issueStatus)!;
+            const active = filters.issueStatus === issueStatus;
+            return (
+              <Chip
+                key={issueStatus}
+                active={active}
+                activeColor={style.color}
+                onClick={() => onFiltersChange({ ...filters, issueStatus: active ? null : issueStatus })}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: active ? '#fff' : style.color }}
+                />
+                {issueStatus === '진행중' ? '진행 중' : issueStatus}
+                <span className="opacity-60">{issueStatusCounts.get(issueStatus) ?? 0}</span>
               </Chip>
             );
           })}
@@ -339,7 +388,6 @@ function SiteListPanel({
                 }
               >
                 {category.label}
-                <span className="opacity-60">{valueCounts.get(category.id) ?? 0}</span>
               </Chip>
             );
           })}
@@ -348,7 +396,7 @@ function SiteListPanel({
         {/* 가치 세부 필터: 대분류를 고른 경우에만 노출 */}
         {filters.value && subValueOptions.length > 0 && (
           <div className="-mt-2 flex flex-wrap gap-1.5 border-l-2 border-zinc-200 pl-3 sm:ml-[5.5rem]">
-            {subValueOptions.map(([subValue, count]) => {
+            {subValueOptions.map(([subValue]) => {
               const active = filters.subValue === subValue;
               return (
                 <button
@@ -361,7 +409,7 @@ function SiteListPanel({
                       : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
                   }`}
                 >
-                  {subValue} <span className="opacity-60">{count}</span>
+                  {subValue}
                 </button>
               );
             })}
@@ -372,15 +420,15 @@ function SiteListPanel({
           <select
             value={filters.round ?? ''}
             onChange={(event) =>
-              onFiltersChange({ ...filters, round: event.target.value ? Number(event.target.value) : null })
+              onFiltersChange({ ...filters, round: event.target.value || null })
             }
             className="h-9 min-w-[12rem] border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 focus:border-zinc-400 focus:outline-none"
             aria-label="선정 회차"
           >
             <option value="">전체 회차</option>
-            {roundOptions.map(([round, { year, count }]) => (
-              <option key={round} value={round}>
-                제{round}회{year ? ` (${year})` : ''} · {count}곳
+            {roundOptions.map(([key, { label, count }]) => (
+              <option key={key} value={key}>
+                {label} · {count}곳
               </option>
             ))}
           </select>

@@ -11,6 +11,8 @@ export type Site = {
   roundLabel: string;
   /** 회차 숫자, 예: 1 (파싱 실패 시 0) */
   round: number;
+  /** 회차 필터 키: 회차가 있으면 숫자 문자열, 없으면 B열 원문 (예: "신규 훼손 위험지") */
+  roundKey: string;
   year: string;
   /** C열 응모당시 사이트 명 */
   name: string;
@@ -80,4 +82,6 @@ export type Site = {
   references: SiteReference[];
   /** BO열 사진 */
   photoUrl: string;
+  /** BP열 보전현안 (진행중 / 종료 / 확인불가) */
+  issueStatus: string;
 };

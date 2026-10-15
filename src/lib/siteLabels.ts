@@ -22,6 +22,19 @@ export function getStatusStyle(status: string): StatusStyle {
   return STATUS_STYLES[status] ?? STATUS_STYLES['확인불가'];
 }
 
+/** BP열 보전현안 표시 순서 */
+export const ISSUE_STATUS_ORDER = ['진행중', '종료', '확인불가'] as const;
+
+const ISSUE_STATUS_STYLES: Record<string, StatusStyle & { label: string }> = {
+  '진행중': { label: '현안 진행 중', color: '#D9480F', soft: '#FFF0E6' },
+  '종료': { label: '현안 종료', color: '#6B6B73', soft: '#EEEEF0' },
+  '확인불가': { label: '현안 확인불가', color: '#6B6B73', soft: '#EEEEF0' },
+};
+
+export function getIssueStatusStyle(issueStatus: string) {
+  return ISSUE_STATUS_STYLES[issueStatus] ?? null;
+}
+
 /** L열 대분류와 세부 가치(M/N/O) 연결 */
 export const VALUE_CATEGORIES = [
   { id: '자연·생태', label: '자연·생태', field: 'natureValues' },

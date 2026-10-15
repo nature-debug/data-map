@@ -29,7 +29,12 @@ export default function RootLayout({
         <header className="bg-white border-b border-zinc-200">
           <div className="max-w-screen-xl mx-auto px-5">
             <div className="flex items-center justify-center py-3.5">
-              <Link href="/" className="flex items-center gap-3">
+              <a
+                href="https://nationaltrust.or.kr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="한국내셔널트러스트 홈페이지 (새 창)"
+              >
                 <Image
                   src="/logo.png"
                   alt="한국내셔널트러스트"
@@ -38,7 +43,9 @@ export default function RootLayout({
                   priority
                   className="relative -top-[2px] h-9 w-auto"
                 />
-                <span className="h-5 w-px bg-zinc-200" aria-hidden="true" />
+              </a>
+              <span className="mx-3 h-5 w-px bg-zinc-200" aria-hidden="true" />
+              <Link href="/">
                 <span className="relative top-[2px] flex items-baseline gap-2">
                   <span className="text-lg font-black tracking-tight text-[#1F4D38]">이곳만은 꼭 지키자</span>
                   <span className="hidden text-xs font-semibold text-zinc-400 sm:inline">선정지, 그 후의 기록</span>

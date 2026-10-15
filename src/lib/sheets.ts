@@ -104,6 +104,11 @@ function parseRound(label: string): { round: number; year: string } {
   return { round, year };
 }
 
+/** BP열 보전현안 표기 통일: '진행 중' → '진행중' */
+function normalizeIssueStatus(value: string): string {
+  return clean(value).replace(/\s+/g, '');
+}
+
 function toNumber(value: string): number | null {
   const num = Number.parseFloat(value);
   return Number.isFinite(num) ? num : null;
@@ -134,6 +139,7 @@ function rowToSite(row: string[]): Site {
     id: get('A') || '',
     roundLabel: get('B'),
     round,
+    roundKey: round > 0 ? String(round) : get('B'),
     year,
     name: get('C'),
     recorder: clean(get('D')),
@@ -181,6 +187,7 @@ function rowToSite(row: string[]): Site {
       (ref): ref is SiteReference => ref !== null,
     ),
     photoUrl: normalizePhotoUrl(get('BO')),
+    issueStatus: normalizeIssueStatus(get('BP')),
   };
 }
 
@@ -206,7 +213,12 @@ export const getSites = cache(async function getSites(): Promise<Site[]> {
         seen.set(base, count + 1);
         return { ...site, id: count ? `${base}-${count + 1}` : base };
       })
-      .sort((a, b) => a.round - b.round || a.id.localeCompare(b.id, 'ko', { numeric: true }));
+      // 회차가 없는 행(신규 훼손지 등)은 가장 최근 회차 뒤에 표시
+      .sort(
+        (a, b) =>
+          (a.round || Infinity) - (b.round || Infinity) ||
+          a.id.localeCompare(b.id, 'ko', { numeric: true }),
+      );
   } catch {
     return [];
   }
